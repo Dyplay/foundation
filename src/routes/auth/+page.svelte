@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
-  import { createAccount, login, isLoggedIn, checkAccountExists } from '$lib/appwrite';
+  import { createUserAccount, signInAccount as login, getCurrentUser as isLoggedIn, checkUserExists as checkAccountExists } from '$lib/appwrite';
   import { isPublicPage } from '$lib/stores/userStore';
 
   // Form state
@@ -83,7 +83,7 @@
     try {
       if (isLoginForm) {
         // Handle login
-        await login(email, password);
+        await login({ email, password });
         success = 'Login successful! Redirecting...';
         setTimeout(() => {
           goto('/');
@@ -98,7 +98,7 @@
         }
 
         // Handle registration
-        await createAccount(email, password, name);
+        await createUserAccount({ email, password, name });
         success = 'Account created! Please check your email for verification code.';
         setTimeout(() => {
           goto('/verify');

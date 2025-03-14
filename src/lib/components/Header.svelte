@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { user, isLoading, initUserStore, isPublicPage } from '../../lib/stores/userStore';
-  import { logout } from '../appwrite';
+  import { signOutAccount as logout } from '$lib/appwrite';
   
   export let companyName: string;
   
@@ -60,14 +60,15 @@
     }
   }
   
-  async function handleLogout() {
+  const handleLogout = async () => {
     try {
       await logout();
-      window.location.href = '/';
+      // Optionally, you can show a success message or redirect
     } catch (error) {
-      console.error('Error logging out:', error);
+      console.error('Logout failed:', error);
+      // Handle the error (e.g., show a notification)
     }
-  }
+  };
 </script>
 
 <header>

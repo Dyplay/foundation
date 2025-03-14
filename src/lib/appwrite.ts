@@ -1,18 +1,17 @@
-import { Client, Account, Databases, ID } from 'appwrite';
+import { Client, Account, Databases, Storage, ID } from 'appwrite';
 import type { User } from './stores/userStore';
 import { updateUser } from './stores/userStore';
-import { sendVerificationEmail, simulateSendingEmail } from './email';
+import { sendVerificationEmail } from './emailService';
 
 // Initialize the Appwrite client
-const client = new Client();
-
-client
-    .setEndpoint('https://cloud.appwrite.io/v1') // Replace with your Appwrite endpoint
-    .setProject('67d3f589000488385c35'); // Replace with your project ID
+export const client = new Client()
+    .setEndpoint('https://cloud.appwrite.io/v1')
+    .setProject('67d3f589000488385c35');
 
 // Initialize Appwrite services
 export const account = new Account(client);
 export const databases = new Databases(client);
+export const storage = new Storage(client);
 
 // Database and collection IDs
 const DATABASE_ID = '67d3fa9b00025dff9050'; // Replace with your database ID
@@ -25,134 +24,85 @@ const VERIFICATION_CODE_KEY = 'verification_code';
 // Environment configuration
 const IS_PRODUCTION = false; // Set to true in production environment
 
+// Type definitions
+interface UserAccount {
+    email: string;
+    password: string;
+    name: string;
+}
+
+interface SignInCredentials {
+    email: string;
+    password: string;
+}
+
 // Authentication functions
-export const createAccount = async (email: string, password: string, name: string): Promise<any | null> => {
+export const createUserAccount = async ({ email, password, name }: UserAccount) => {
     try {
-        // Check if we're in a browser environment
-        if (typeof window === 'undefined' || typeof localStorage === 'undefined') {
-            console.error('Not in a browser environment or localStorage is not available');
-            throw new Error('Browser environment required');
-        }
-        
-        // Generate a random 6-digit code
-        const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
-        
-        // Store user data and verification code in local storage
+        // Instead of creating account, store details in localStorage for later
         const pendingUser = {
             email,
             password,
             name,
-            createdAt: new Date().toISOString(),
-            expiresAt: new Date(Date.now() + 30 * 60 * 1000).toISOString() // 30 minutes expiry
+            expiresAt: new Date(Date.now() + 3600000).toISOString(), // 1 hour expiry
         };
         
-        // Clear any existing data first
-        localStorage.removeItem(PENDING_USER_KEY);
-        localStorage.removeItem(VERIFICATION_CODE_KEY);
-        
-        // Save new data
         localStorage.setItem(PENDING_USER_KEY, JSON.stringify(pendingUser));
-        localStorage.setItem(VERIFICATION_CODE_KEY, verificationCode);
-        
-        // Verify data was saved correctly
-        const savedUser = localStorage.getItem(PENDING_USER_KEY);
-        const savedCode = localStorage.getItem(VERIFICATION_CODE_KEY);
-        
-        if (!savedUser || !savedCode) {
-            throw new Error('Failed to save user data to localStorage');
-        }
-        
-        // For development: Log the verification code to the console
-        console.log(`Verification code for ${email}: ${verificationCode}`);
         
         // Send verification email
-        if (IS_PRODUCTION) {
-            // In production, send a real email
-            await sendVerificationEmail(email, name, verificationCode);
-        } else {
-            // In development, simulate sending an email
-            simulateSendingEmail(email, verificationCode, name);
-        }
+        await sendVerificationCode(email);
         
-        return { email, success: true };
+        return { success: true, email };
     } catch (error) {
-        console.error('Error creating account:', error);
+        console.error("Error initiating account creation:", error);
         throw error;
     }
 };
 
-export const login = async (email: string, password: string): Promise<any> => {
+export const signInAccount = async ({ email, password }: SignInCredentials) => {
     try {
-        // Updated to use createEmailPasswordSession instead of createEmailSession
+        // Use email and password directly without userId
         const session = await account.createEmailPasswordSession(email, password);
-        
-        // Get the current user after successful login
-        const userData = await getCurrentUser();
-        if (userData) {
-            // Update the user store with the current user data
-            updateUser(userData);
-        }
-        
+        window.location.href = '/';
         return session;
-    } catch (error: any) {
-        console.error('Error logging in:', error);
-        
-        // Provide more user-friendly error messages
-        if (error.code === 401) {
-            throw new Error('Invalid email or password. Please try again.');
-        } else if (error.message && error.message.includes('User with the requested email')) {
-            throw new Error('Account not found. Please check your email or create a new account.');
-        } else {
-            throw new Error(error.message || 'An error occurred during login. Please try again.');
-        }
-    }
-};
-
-export const logout = async (): Promise<{}> => {
-    try {
-        const result = await account.deleteSession('current');
-        
-        // Force a page refresh after logout
-        window.location.reload();
-        
-        return result;
     } catch (error) {
-        console.error('Error logging out:', error);
+        console.error("Error signing in:", error);
         throw error;
     }
 };
 
-export const getCurrentUser = async (): Promise<User | null> => {
+export const getCurrentUser = async () => {
     try {
-        // This will throw an error if the user is not authenticated
-        const user = await account.get();
-        return user as unknown as User;
+        const currentAccount = await account.get();
+        return currentAccount;
     } catch (error) {
-        // Don't log errors on public pages
-        const publicPaths = ['/auth', '/verify'];
-        const currentPath = typeof window !== 'undefined' ? window.location.pathname : '';
-        const isOnPublicPage = publicPaths.some(path => currentPath.startsWith(path));
-        
-        if (!isOnPublicPage) {
-            console.error("Error getting current user:", error);
-        }
+        console.error("Error getting current user:", error);
         return null;
     }
 };
 
-export const isLoggedIn = async (): Promise<boolean> => {
+export const signOutAccount = async () => {
     try {
-        const user = await account.get();
-        return !!user;
+        const session = await account.deleteSession('current');
+        window.location.href = '/';
+        return session;
     } catch (error) {
-        // Don't log errors on public pages
-        const publicPaths = ['/auth', '/verify'];
-        const currentPath = typeof window !== 'undefined' ? window.location.pathname : '';
-        const isOnPublicPage = publicPaths.some(path => currentPath.startsWith(path));
-        
-        if (!isOnPublicPage) {
-            console.error('Error checking login status:', error);
+        console.error("Error signing out:", error);
+        throw error;
+    }
+};
+
+export const checkUserExists = async (email: string) => {
+    try {
+        // Try to create a session - this will fail if user doesn't exist
+        await account.createSession(email, 'dummy-password');
+        return true;
+    } catch (error: any) {
+        if (error.code === 401) {
+            // User exists but wrong password
+            return true;
         }
+        // Any other error means user doesn't exist
         return false;
     }
 };
@@ -173,39 +123,6 @@ export const updatePassword = async (password: string, oldPassword: string): Pro
     } catch (error) {
         console.error('Error updating password:', error);
         throw error;
-    }
-};
-
-// Check if an account exists
-export const checkAccountExists = async (email: string): Promise<boolean> => {
-    try {
-        // This is a workaround since Appwrite doesn't have a direct method to check if an account exists
-        // We'll try to create a recovery session, which will fail if the account doesn't exist
-        
-        // Use the current window location for the recovery URL
-        const recoveryUrl = typeof window !== 'undefined' 
-            ? `${window.location.origin}/auth?recovery=true` 
-            : 'https://example.com';
-            
-        await account.createRecovery(email, recoveryUrl);
-        
-        // If we get here, the account exists
-        return true;
-    } catch (error: any) {
-        console.log('Error checking account:', error);
-        
-        // If the error is about the account not existing or a 404/401 error, return false
-        if (
-            (error.message && error.message.includes('User with the requested email')) ||
-            error.code === 404 ||
-            error.code === 401
-        ) {
-            return false;
-        }
-        
-        // For any other error, log it but don't block the user
-        console.error('Unexpected error checking account:', error);
-        return false;
     }
 };
 
@@ -232,17 +149,8 @@ export const sendVerificationCode = async (email: string): Promise<boolean> => {
         // Update the verification code in local storage
         localStorage.setItem(VERIFICATION_CODE_KEY, verificationCode);
         
-        // For development: Log the verification code to the console
-        console.log(`Verification code for ${email}: ${verificationCode}`);
-        
-        // Send verification email
-        if (IS_PRODUCTION) {
-            // In production, send a real email
-            await sendVerificationEmail(email, pendingUser.name, verificationCode);
-        } else {
-            // In development, simulate sending an email
-            simulateSendingEmail(email, verificationCode, pendingUser.name);
-        }
+        // Send verification email using Resend
+        await sendVerificationEmail(email, pendingUser.name, verificationCode);
         
         return true;
     } catch (error) {
@@ -255,7 +163,6 @@ export const verifyCode = async (email: string, code: string): Promise<boolean> 
     try {
         // Check if we're in a browser environment
         if (typeof window === 'undefined' || typeof localStorage === 'undefined') {
-            console.error('Not in a browser environment or localStorage is not available');
             throw new Error('Browser environment required');
         }
         
@@ -275,39 +182,22 @@ export const verifyCode = async (email: string, code: string): Promise<boolean> 
         }
         
         try {
-            // Code is valid, create the actual account in Appwrite
+            // Change 'unique()' string to ID.unique()
+            const userId = ID.unique(); // Generate proper userId using Appwrite's ID utility
             const response = await account.create(
-                'unique()', 
-                pendingUser.email, 
-                pendingUser.password, 
+                userId,  // Use the generated userId instead of 'unique()'
+                pendingUser.email,
+                pendingUser.password,
                 pendingUser.name
             );
             
             if (response) {
-                // Don't try to login immediately - just clear the data and return success
-                // The user will be redirected to the login page
-                
-                // Clear the pending user and verification code from local storage
                 localStorage.removeItem(PENDING_USER_KEY);
                 localStorage.removeItem(VERIFICATION_CODE_KEY);
-                
                 return true;
             }
         } catch (appwriteError: any) {
             console.error('Appwrite error during account creation:', appwriteError);
-            
-            // Check if the error is because the account already exists
-            if (appwriteError.message && appwriteError.message.includes('already exists')) {
-                // Don't try to login - just clear the data and return success
-                // The user will be redirected to the login page
-                
-                // Clear the pending user and verification code from local storage
-                localStorage.removeItem(PENDING_USER_KEY);
-                localStorage.removeItem(VERIFICATION_CODE_KEY);
-                
-                throw new Error('This email is already registered. Please login with your credentials.');
-            }
-            
             throw appwriteError;
         }
         

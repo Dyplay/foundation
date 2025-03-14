@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
-  import { verifyCode, sendVerificationCode, isLoggedIn } from '$lib/appwrite';
+  import { verifyCode, sendVerificationCode, getCurrentUser } from '$lib/appwrite';
   import { isPublicPage } from '$lib/stores/userStore';
   
   // State variables
@@ -18,6 +18,7 @@
   let devMessage = '';
   let isLoading = true;
   let checkingLoginStatus = true;
+  let message = '';
   
   // Load pending user data from localStorage
   function loadPendingUserData() {
@@ -81,48 +82,33 @@
   }
   
   onMount(async () => {
-    // Mark this as a public page
-    isPublicPage.set(true);
-
+    isPublicPage.set(true); // Mark this as a public page
+    
     try {
-      // Check if user is already logged in
-      const loggedIn = await isLoggedIn();
-      if (loggedIn) {
-        // If already logged in, redirect to home
-        goto('/');
-        return;
-      }
+        // Check if user is already logged in
+        const user = await getCurrentUser();
+        if (user) {
+            // If already logged in, redirect to home
+            goto('/');
+            return;
+        }
     } catch (err) {
-      // Don't log errors on the verification page
+        // Don't log errors on the verify page
     } finally {
-      checkingLoginStatus = false;
+        checkingLoginStatus = false;
     }
 
-    // Check if we have a pending user in localStorage
-    try {
-      const pendingUserJson = localStorage.getItem('pending_user');
-      if (!pendingUserJson) {
-        noPendingUser = true;
-        error = 'No pending verification found. Please sign up first.';
+    // Get the stored pending user
+    const pendingUserJson = localStorage.getItem('pending_user');
+    if (!pendingUserJson) {
+        goto('/auth');
         return;
-      }
-
-      const pendingUser = JSON.parse(pendingUserJson);
-      email = pendingUser.email;
-
-      // Check if the verification has expired
-      if (new Date(pendingUser.expiresAt) < new Date()) {
-        error = 'Verification code has expired. Please sign up again.';
-        // Clear expired data
-        localStorage.removeItem('pending_user');
-        localStorage.removeItem('verification_code');
-        noPendingUser = true;
-      }
-    } catch (err) {
-      console.error('Error checking pending user:', err);
-      error = 'An error occurred. Please try signing up again.';
-      noPendingUser = true;
     }
+    
+    const pendingUser = JSON.parse(pendingUserJson);
+    email = pendingUser.email;
+    
+    message = `We've sent a verification code to ${email}. Please check your email and enter the code below to complete your registration.`;
   });
   
   async function handleSubmit() {
@@ -204,15 +190,17 @@
   {:else}
     <div class="verify-card">
       <h1>Verify Your Email</h1>
-      <p>We've sent a verification code to <strong>{email}</strong></p>
-      <p>Please enter the 6-digit code to verify your email address.</p>
       
-      {#if error}
-        <div class="error">{error}</div>
+      {#if message}
+        <div class="message">
+          {message}
+        </div>
       {/if}
       
-      {#if success}
-        <div class="success">{success}</div>
+      {#if error}
+        <div class="error">
+          {error}
+        </div>
       {/if}
       
       <form on:submit|preventDefault={handleSubmit}>
@@ -239,18 +227,10 @@
         </button>
       </form>
       
-      <div class="resend-container">
-        <p>Didn't receive the code?</p>
-        <button 
-          class="button secondary" 
-          on:click={handleResendCode} 
-          disabled={isResending}
-        >
-          {#if isResending}
-            <div class="loading-spinner small"></div> Sending...
-          {:else}
-            Resend Code
-          {/if}
+      <div class="info-box">
+        <p>Didn't receive the email? Check your spam folder or</p>
+        <button class="resend-button" on:click={() => window.location.reload()}>
+          Resend Verification Email
         </button>
       </div>
       
@@ -513,5 +493,39 @@
     100% {
       box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
     }
+  }
+  
+  .message {
+    background-color: rgba(16, 185, 129, 0.1);
+    color: #10b981;
+    padding: 1rem;
+    border-radius: 4px;
+    margin-bottom: 1.5rem;
+    font-size: 0.875rem;
+    line-height: 1.5;
+  }
+  
+  .info-box {
+    margin-top: 2rem;
+    text-align: center;
+    color: #94a3b8;
+    font-size: 0.875rem;
+  }
+  
+  .resend-button {
+    background: none;
+    border: none;
+    color: #7c3aed;
+    font-weight: 500;
+    cursor: pointer;
+    padding: 0.5rem;
+    font-size: 0.875rem;
+    margin-top: 0.5rem;
+    transition: color 0.2s ease;
+  }
+  
+  .resend-button:hover {
+    color: #6d28d9;
+    text-decoration: underline;
   }
 </style> 

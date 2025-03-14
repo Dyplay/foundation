@@ -94,9 +94,17 @@ export const login = async (email: string, password: string): Promise<any> => {
         }
         
         return session;
-    } catch (error) {
+    } catch (error: any) {
         console.error('Error logging in:', error);
-        throw error;
+        
+        // Provide more user-friendly error messages
+        if (error.code === 401) {
+            throw new Error('Invalid email or password. Please try again.');
+        } else if (error.message && error.message.includes('User with the requested email')) {
+            throw new Error('Account not found. Please check your email or create a new account.');
+        } else {
+            throw new Error(error.message || 'An error occurred during login. Please try again.');
+        }
     }
 };
 
@@ -173,16 +181,31 @@ export const checkAccountExists = async (email: string): Promise<boolean> => {
     try {
         // This is a workaround since Appwrite doesn't have a direct method to check if an account exists
         // We'll try to create a recovery session, which will fail if the account doesn't exist
-        await account.createRecovery(email, 'https://example.com');
+        
+        // Use the current window location for the recovery URL
+        const recoveryUrl = typeof window !== 'undefined' 
+            ? `${window.location.origin}/auth?recovery=true` 
+            : 'https://example.com';
+            
+        await account.createRecovery(email, recoveryUrl);
+        
         // If we get here, the account exists
         return true;
     } catch (error: any) {
-        // If the error is about the account not existing, return false
-        if (error.message && error.message.includes('User with the requested email')) {
+        console.log('Error checking account:', error);
+        
+        // If the error is about the account not existing or a 404/401 error, return false
+        if (
+            (error.message && error.message.includes('User with the requested email')) ||
+            error.code === 404 ||
+            error.code === 401
+        ) {
             return false;
         }
-        // For any other error, assume the account might exist
-        return true;
+        
+        // For any other error, log it but don't block the user
+        console.error('Unexpected error checking account:', error);
+        return false;
     }
 };
 

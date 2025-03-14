@@ -185,6 +185,7 @@
               required
               minlength="8"
               disabled={loading}
+              autocomplete={isLoginForm ? "current-password" : "new-password"}
             />
             <button 
               type="button" 
@@ -221,6 +222,7 @@
                 minlength="8"
                 disabled={loading}
                 class={!passwordsMatch && confirmPassword ? "password-mismatch" : ""}
+                autocomplete="new-password"
               />
               <button 
                 type="button" 

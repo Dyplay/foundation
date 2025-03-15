@@ -3,8 +3,11 @@
 
 // In a real application, you would store this in an environment variable
 // For development purposes, we're hardcoding it here
-const RESEND_API_KEY = 're_RBxP1fnY_KBcCsiF4ifvAg8We2ueAMtAz'; // Replace with your actual Resend API key
-const FROM_EMAIL = 'no-reply-eonfluxtech@dyplay.at'; // Replace with your verified domain
+const RESEND_API_KEY = 're_UkWuzEDx_4jhgqu42TnfGeLmMdKXxBynU';
+
+// During development/testing, use the Resend onboarding address
+// After domain verification, switch to your custom domain
+const FROM_EMAIL = 'Foundation <no-reply@mail.dyplay.at>';
 
 /**
  * Send a verification email using Resend
@@ -20,7 +23,7 @@ export const sendVerificationEmail = async (to: string, name: string, code: stri
       console.error('Not in a browser environment');
       return false;
     }
-
+    
     // In a real application, you would make this call from a server-side API
     // For this demo, we'll make the call directly from the browser
     // Note: This is not recommended for production as it exposes your API key
@@ -32,27 +35,82 @@ export const sendVerificationEmail = async (to: string, name: string, code: stri
       },
       body: JSON.stringify({
         from: FROM_EMAIL,
-        to: to,
-        subject: 'Your Verification Code',
+        to: to, // Send to actual recipient since domain is verified
+        subject: 'Verify Your Email - Foundation',
         html: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 5px;">
-            <h2 style="color: #4f46e5;">Verify Your Email</h2>
-            <p>Hello ${name},</p>
-            <p>Thank you for signing up! Please use the verification code below to complete your registration:</p>
-            <div style="background-color: #f8fafc; padding: 15px; border-radius: 5px; text-align: center; margin: 20px 0;">
-              <span style="font-size: 24px; font-weight: bold; letter-spacing: 5px; color: #4f46e5;">${code}</span>
-            </div>
-            <p>This code will expire in 30 minutes.</p>
-            <p>If you didn't request this verification, please ignore this email.</p>
-            <p style="margin-top: 30px; font-size: 12px; color: #64748b;">This is an automated message, please do not reply.</p>
-          </div>
+          <!DOCTYPE html>
+          <html>
+            <head>
+              <meta charset="utf-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1.0">
+              <title>Verify Your Email</title>
+            </head>
+            <body style="margin: 0; padding: 0; background-color: #1a1a1a; font-family: Arial, sans-serif;">
+              <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; margin: 0 auto; padding: 40px 20px;">
+                <tr>
+                  <td align="center">
+                    <img src="https://mail.dyplay.at/logo.png" alt="Foundation Logo" style="height: 60px; margin-bottom: 30px;">
+                  </td>
+                </tr>
+                <tr>
+                  <td style="background-color: #2a2a2a; border-radius: 12px; padding: 40px; color: #ffffff;">
+                    <h1 style="margin: 0 0 20px; color: #8b5cf6; font-size: 24px; font-weight: 600;">Verify Your Email</h1>
+                    
+                    <p style="margin: 0 0 25px; color: #e0e0e0; font-size: 16px; line-height: 1.5;">
+                      Hello ${name},
+                    </p>
+                    
+                    <p style="margin: 0 0 25px; color: #e0e0e0; font-size: 16px; line-height: 1.5;">
+                      Thank you for signing up! Please use the verification code below to complete your registration:
+                    </p>
+                    
+                    <div style="background-color: #1a1a1a; border-radius: 8px; padding: 20px; margin: 30px 0; text-align: center;">
+                      <span style="font-size: 32px; font-weight: bold; letter-spacing: 8px; color: #8b5cf6; font-family: monospace;">${code}</span>
+                    </div>
+                    
+                    <p style="margin: 0 0 25px; color: #e0e0e0; font-size: 16px; line-height: 1.5;">
+                      This code will expire in 30 minutes for security purposes.
+                    </p>
+                    
+                    <p style="margin: 0 0 25px; color: #e0e0e0; font-size: 16px; line-height: 1.5;">
+                      If you didn't request this verification, please ignore this email.
+                    </p>
+                    
+                    <div style="border-top: 1px solid #404040; margin-top: 30px; padding-top: 30px;">
+                      <p style="margin: 0; color: #888888; font-size: 14px; line-height: 1.5; text-align: center;">
+                        This is an automated message from Foundation. Please do not reply to this email.
+                      </p>
+                    </div>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding: 20px; text-align: center;">
+                    <div style="margin-bottom: 20px;">
+                      <a href="https://github.com" style="display: inline-block; margin: 0 10px; color: #888888; text-decoration: none;">
+                        <img src="https://mail.dyplay.at/github-mark-white.png" alt="GitHub" style="height: 24px;">
+                      </a>
+                      <a href="https://twitter.com" style="display: inline-block; margin: 0 10px; color: #888888; text-decoration: none;">
+                        <img src="https://mail.dyplay.at/twitter.png" alt="Twitter" style="height: 24px;">
+                      </a>
+                      <a href="https://linkedin.com" style="display: inline-block; margin: 0 10px; color: #888888; text-decoration: none;">
+                        <img src="https://mail.dyplay.at/linkedin.png" alt="LinkedIn" style="height: 24px;">
+                      </a>
+                    </div>
+                    <p style="margin: 0; color: #888888; font-size: 12px;">
+                      © Foundation 2024. All rights reserved.
+                    </p>
+                  </td>
+                </tr>
+              </table>
+            </body>
+          </html>
         `
       })
     });
 
     if (!response.ok) {
       const errorData = await response.json();
-      console.error('Error sending email:', errorData);
+      console.error('Server error sending email:', errorData);
       return false;
     }
 

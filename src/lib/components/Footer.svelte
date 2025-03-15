@@ -1,7 +1,37 @@
-<script>
-  export let companyName;
+<script lang="ts">
+  import { onMount } from 'svelte';
+  import { darkMode } from '../../lib/stores/themeStore';
+  export let companyName: string;
   
   const currentYear = new Date().getFullYear();
+  
+  // Update logo source when theme changes
+  $: logoSrc = $darkMode ? '/logo.png' : '/logo_whitemode.png';
+  
+  // Create a style element for dynamic logo updates
+  let styleElement: HTMLStyleElement;
+  
+  onMount(() => {
+    // Create and append style element
+    styleElement = document.createElement('style');
+    document.head.appendChild(styleElement);
+    
+    // Cleanup on component destroy
+    return () => {
+      if (styleElement && styleElement.parentNode) {
+        styleElement.parentNode.removeChild(styleElement);
+      }
+    };
+  });
+  
+  // Update style when logo source changes
+  $: if (styleElement) {
+    styleElement.textContent = `
+      .footer-logo .logo-image {
+        content: url("${logoSrc}") !important;
+      }
+    `;
+  }
 </script>
 
 <footer class="footer">
@@ -9,7 +39,7 @@
     <div class="footer-content">
       <div class="footer-info">
         <div class="footer-logo">
-          <img src="/logo.png" alt="{companyName} Logo" class="logo-image" />
+          <img src={logoSrc} alt="{companyName} Logo" class="logo-image" />
         </div>
         <p class="footer-description">
           Where universal and simple software is built. Creating open-source technologies that empower developers and users alike.

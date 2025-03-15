@@ -1,9 +1,9 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { user, isLoading } from '../../lib/stores/userStore';
+  import { darkMode } from '../../lib/stores/themeStore';
   import { goto } from '$app/navigation';
   
-  let darkMode = true;
   let emailNotifications = true;
   let isSaving = false;
   let saveSuccess = false;
@@ -15,12 +15,11 @@
       goto('/auth');
     }
     
-    // Load settings from localStorage or set defaults
+    // Load email notification settings from localStorage
     try {
       const savedSettings = localStorage.getItem('user_settings');
       if (savedSettings) {
         const settings = JSON.parse(savedSettings);
-        darkMode = settings.darkMode ?? true;
         emailNotifications = settings.emailNotifications ?? true;
       }
     } catch (error) {
@@ -34,18 +33,15 @@
     saveError = '';
     
     try {
-      // Save settings to localStorage
-      localStorage.setItem('user_settings', JSON.stringify({
-        darkMode,
-        emailNotifications
-      }));
+      // Get existing settings to preserve dark mode value
+      const savedSettings = localStorage.getItem('user_settings');
+      const settings = savedSettings ? JSON.parse(savedSettings) : {};
       
-      // Apply dark mode setting to document
-      if (darkMode) {
-        document.documentElement.classList.add('dark-mode');
-      } else {
-        document.documentElement.classList.remove('dark-mode');
-      }
+      // Update settings
+      settings.emailNotifications = emailNotifications;
+      
+      // Save all settings back to localStorage
+      localStorage.setItem('user_settings', JSON.stringify(settings));
       
       saveSuccess = true;
       setTimeout(() => {
@@ -83,7 +79,7 @@
             </div>
             <div class="setting-control">
               <label class="toggle">
-                <input type="checkbox" id="dark-mode" bind:checked={darkMode}>
+                <input type="checkbox" id="dark-mode" bind:checked={$darkMode}>
                 <span class="toggle-slider"></span>
               </label>
             </div>

@@ -5,26 +5,45 @@
 @tailwind utilities;
 
 :root {
-  /* Dark theme colors */
-  --background: #111827;
-  --background-alt: #1e293b;
-  --background-card: #1e293b;
-  --text: #f3f4f6;
-  --text-secondary: #9ca3af;
+  /* Light mode variables */
+  --background: #ffffff;
+  --background-alt: #f9fafb;
+  --background-card: #ffffff;
+  --text-primary: #111827;
+  --text-secondary: #4b5563;
   --accent: #8b5cf6;
-  --accent-hover: #a78bfa;
-  --border: rgba(255, 255, 255, 0.1);
+  --accent-hover: #7c3aed;
+  --border: #e5e7eb;
+  --tag-bg: #f3f4f6;
+  --tag-text: #374151;
   
   /* Tag styles */
-  --tag-bg: rgba(139, 92, 246, 0.2);
-  --tag-text: #a78bfa;
   --primary: #6d28d9;
   --primary-dark: #5b21b6;
 }
 
+/* Dark mode variables */
+.dark-mode {
+  --background: #111827;
+  --background-alt: #1f2937;
+  --background-card: #1f2937;
+  --text-primary: #f9fafb;
+  --text-secondary: #9ca3af;
+  --border: #374151;
+  --tag-bg: #374151;
+  --tag-text: #e5e7eb;
+}
+
+/* Global styles */
+html {
+  background-color: var(--background);
+  color: var(--text-primary);
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
 body {
   background-color: var(--background);
-  color: var(--text);
+  color: var(--text-primary);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
   margin: 0;
   padding: 0;
@@ -60,7 +79,7 @@ body {
 
 .btn-outline {
   background-color: transparent;
-  color: var(--text);
+  color: var(--text-primary);
   border: 1px solid var(--border);
 }
 
@@ -96,7 +115,7 @@ body {
   }
   
   body {
-    @apply bg-[var(--background)] text-[var(--text)];
+    @apply bg-[var(--background)] text-[var(--text-primary)];
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
   }
 }
@@ -111,7 +130,7 @@ body {
   }
   
   .btn-secondary {
-    @apply bg-white text-[var(--text)] hover:bg-gray-50 border border-gray-300 shadow-sm hover:shadow;
+    @apply bg-white text-[var(--text-primary)] hover:bg-gray-50 border border-gray-300 shadow-sm hover:shadow;
   }
   
   .btn-accent {
@@ -288,4 +307,9 @@ a.btn-primary:hover {
   h3 {
     font-size: 1.125rem;
   }
+}
+
+/* Smooth transition for dark mode */
+*, *::before, *::after {
+  transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
 }

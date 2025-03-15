@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { user, isLoading, initUserStore, isPublicPage } from '../../lib/stores/userStore';
+  import { darkMode } from '../../lib/stores/themeStore';
   import { signOutAccount as logout } from '$lib/appwrite';
   
   export let companyName: string;
@@ -10,8 +11,18 @@
   let isMenuOpen = false;
   let isUserMenuOpen = false;
   
+  // Update logo source when theme changes
+  $: logoSrc = $darkMode ? '/logo.png' : '/logo_whitemode.png';
+  
+  // Create a style element for dynamic logo updates
+  let styleElement: HTMLStyleElement;
+  
   onMount(() => {
-    // Initialize the user store - it will now handle public pages internally
+    // Create and append style element
+    styleElement = document.createElement('style');
+    document.head.appendChild(styleElement);
+    
+    // Initialize the user store
     initUserStore();
     
     // Close user menu when clicking outside
@@ -24,10 +35,23 @@
     
     document.addEventListener('click', handleClickOutside);
     
+    // Cleanup on component destroy
     return () => {
+      if (styleElement && styleElement.parentNode) {
+        styleElement.parentNode.removeChild(styleElement);
+      }
       document.removeEventListener('click', handleClickOutside);
     };
   });
+  
+  // Update style when logo source changes
+  $: if (styleElement) {
+    styleElement.textContent = `
+      .logo-image {
+        content: url("${logoSrc}") !important;
+      }
+    `;
+  }
   
   function toggleSearch() {
     isSearchOpen = !isSearchOpen;
@@ -75,7 +99,7 @@
   <div class="container">
     <div class="navbar">
       <a href="/" class="logo">
-        <img src="/logo.png" alt="{companyName} Logo" class="logo-image" />
+        <img src={logoSrc} alt="{companyName} Logo" class="logo-image" />
       </a>
       
       <button class="menu-toggle" on:click={toggleMenu} aria-label="Toggle menu">
@@ -130,7 +154,11 @@
             <div class="user-menu-container">
               <button on:click={toggleUserMenu} class="user-menu-button">
                 <div class="user-avatar">
-                  {$user.name ? $user.name.charAt(0).toUpperCase() : 'U'}
+                  {#if $user?.profilePicture}
+                    <img src={$user.profilePicture} alt="Profile" class="avatar-image" />
+                  {:else}
+                    {$user?.name ? $user.name.charAt(0).toUpperCase() : 'U'}
+                  {/if}
                 </div>
                 <span class="user-name">{$user.name}</span>
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -142,7 +170,11 @@
                 <div class="user-dropdown">
                   <div class="user-dropdown-header">
                     <div class="user-avatar-large">
-                      {$user.name ? $user.name.charAt(0).toUpperCase() : 'U'}
+                      {#if $user?.profilePicture}
+                        <img src={$user.profilePicture} alt="Profile" class="avatar-image" />
+                      {:else}
+                        {$user?.name ? $user.name.charAt(0).toUpperCase() : 'U'}
+                      {/if}
                     </div>
                     <div>
                       <div class="user-dropdown-name">{$user.name}</div>
@@ -355,6 +387,7 @@
     justify-content: center;
     font-weight: 600;
     margin-right: 0.5rem;
+    overflow: hidden;
   }
   
   .user-avatar-large {
@@ -602,5 +635,12 @@
     .logo-image {
       height: 2.5rem;
     }
+  }
+
+  .avatar-image {
+    width: 100%;
+    height: 100%;
+    border-radius: 9999px;
+    object-fit: cover;
   }
 </style> 

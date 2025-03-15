@@ -3,13 +3,17 @@
   import { user, isLoading } from '../../lib/stores/userStore';
   import { goto } from '$app/navigation';
   import { account } from '$lib/appwrite';
-  
+  import ProfilePicture from '$lib/components/ProfilePicture.svelte';
+  import { updateName } from '$lib/appwrite';
+
   let name = '';
   let email = '';
   let isUpdating = false;
   let updateSuccess = false;
   let updateError = '';
-  
+  let isEditing = false;
+  let newName = '';
+
   onMount(async () => {
     // Redirect if not logged in
     if (!$isLoading && !$user) {
@@ -43,316 +47,321 @@
       isUpdating = false;
     }
   }
+
+  async function handleUpdateName() {
+    try {
+      if (!newName.trim()) return;
+      await updateName(newName);
+      isEditing = false;
+      updateError = '';
+    } catch (error) {
+      updateError = 'Failed to update name. Please try again.';
+    }
+  }
+
+  function startEditing() {
+    if ($user) {
+      newName = $user.name;
+      isEditing = true;
+    }
+  }
 </script>
 
-<div class="profile-container">
-  {#if $isLoading}
-    <div class="loading-container">
-      <div class="loading-spinner"></div>
-      <p>Loading profile...</p>
+<div class="page-container">
+  <div class="profile-container">
+    <div class="profile-header">
+      <h1>Your Profile</h1>
+      <p class="subtitle">Manage your account information</p>
     </div>
-  {:else if $user}
-    <div class="profile-card">
-      <div class="profile-header">
-        <div class="profile-avatar">
-          {$user.name.charAt(0).toUpperCase()}
-        </div>
-        <h1 class="profile-title">Your Profile</h1>
-      </div>
-      
-      <form on:submit|preventDefault={updateProfile} class="profile-form">
-        <div class="form-group">
-          <label for="name">Full Name</label>
-          <input 
-            type="text" 
-            id="name" 
-            bind:value={name} 
-            placeholder="Enter your full name"
-            required
-          />
-        </div>
+
+    <div class="profile-content">
+      <div class="profile-section main-info">
+        <ProfilePicture />
         
-        <div class="form-group">
-          <label for="email">Email</label>
-          <input 
-            type="email" 
-            id="email" 
-            value={email} 
-            placeholder="Your email address"
-            disabled
-          />
-          <p class="input-help">Email cannot be changed</p>
-        </div>
-        
-        {#if updateError}
-          <div class="error-message">{updateError}</div>
-        {/if}
-        
-        {#if updateSuccess}
-          <div class="success-message">Profile updated successfully!</div>
-        {/if}
-        
-        <button type="submit" class="btn btn-primary profile-button" disabled={isUpdating}>
-          {#if isUpdating}
-            <div class="spinner"></div>
-            <span>Updating...</span>
-          {:else}
-            Update Profile
+        <div class="user-info">
+          {#if isEditing}
+            <div class="edit-name-form">
+              <input
+                type="text"
+                bind:value={newName}
+                placeholder="Enter new name"
+                class="name-input"
+              />
+              <div class="button-group">
+                <button class="btn secondary" on:click={() => isEditing = false}>Cancel</button>
+                <button class="btn primary" on:click={handleUpdateName}>Save</button>
+              </div>
+              {#if updateError}
+                <p class="error-message">{updateError}</p>
+              {/if}
+            </div>
+          {:else if $user}
+            <div class="name-display">
+              <h2>{$user.name}</h2>
+              <button class="btn-icon" on:click={startEditing}>
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/>
+                </svg>
+              </button>
+            </div>
           {/if}
-        </button>
-      </form>
-      
-      <div class="profile-info">
-        <div class="info-item">
-          <span class="info-label">Account ID:</span>
-          <span class="info-value">{$user.$id}</span>
+          {#if $user}
+            <p class="email">{$user.email}</p>
+          {/if}
         </div>
-        <div class="info-item">
-          <span class="info-label">Email Verified:</span>
-          <span class="info-value">{$user.emailVerification ? 'Yes' : 'No'}</span>
-        </div>
-        <div class="info-item">
-          <span class="info-label">Account Status:</span>
-          <span class="info-value">{$user.status ? 'Active' : 'Inactive'}</span>
+      </div>
+
+      <div class="profile-section account-details">
+        <h3>Account Details</h3>
+        <div class="details-grid">
+          <div class="detail-item">
+            <span class="detail-label">Account ID</span>
+            <span class="detail-value">{$user?.$id || 'N/A'}</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">Email Status</span>
+            <span class="detail-value status">
+              <span class="status-dot {$user?.emailVerification ? 'verified' : 'unverified'}"></span>
+              {$user?.emailVerification ? 'Verified' : 'Unverified'}
+            </span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">Account Status</span>
+            <span class="detail-value status">
+              <span class="status-dot active"></span>
+              Active
+            </span>
+          </div>
         </div>
       </div>
     </div>
-  {:else}
-    <div class="not-logged-in">
-      <h2>Not Logged In</h2>
-      <p>Please sign in to view your profile.</p>
-      <a href="/auth" class="btn btn-primary">Sign In</a>
-    </div>
-  {/if}
+  </div>
 </div>
 
 <style>
+  .page-container {
+    width: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem;
+  }
+
   .profile-container {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    min-height: calc(100vh - 200px);
-    padding: 2rem 1rem;
+    background: var(--background-card);
+    border-radius: 1.5rem;
+    padding: 2.5rem;
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
   }
-  
-  .profile-card {
-    background-color: var(--background-card);
-    border-radius: 0.5rem;
-    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-    width: 100%;
-    max-width: 600px;
-    overflow: hidden;
-    border: 1px solid var(--border);
-  }
-  
+
   .profile-header {
-    padding: 2rem;
-    display: flex;
-    align-items: center;
-    border-bottom: 1px solid var(--border);
+    text-align: center;
+    margin-bottom: 3rem;
   }
-  
-  .profile-avatar {
-    width: 4rem;
-    height: 4rem;
-    border-radius: 9999px;
-    background-color: var(--accent);
-    color: white;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.5rem;
-    font-weight: 600;
-    margin-right: 1.5rem;
-  }
-  
-  .profile-title {
-    font-size: 1.5rem;
+
+  h1 {
+    font-size: 2.5rem;
     font-weight: 700;
+    margin: 0;
+    background: linear-gradient(135deg, var(--accent) 0%, #8b5cf6 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
   }
-  
-  .profile-form {
-    padding: 2rem;
-    border-bottom: 1px solid var(--border);
-  }
-  
-  .form-group {
-    margin-bottom: 1.5rem;
-  }
-  
-  .form-group label {
-    display: block;
-    font-size: 0.875rem;
-    font-weight: 500;
-    margin-bottom: 0.5rem;
-  }
-  
-  .form-group input {
-    width: 100%;
-    padding: 0.75rem 1rem;
-    border-radius: 0.375rem;
-    background-color: var(--background);
-    border: 1px solid var(--border);
-    color: var(--text);
-    font-size: 0.875rem;
-    transition: border-color 0.2s ease;
-  }
-  
-  .form-group input:focus {
-    outline: none;
-    border-color: var(--accent);
-    box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.2);
-  }
-  
-  .form-group input::placeholder {
-    color: var(--text-secondary);
-  }
-  
-  .form-group input:disabled {
-    opacity: 0.7;
-    cursor: not-allowed;
-  }
-  
-  .input-help {
-    font-size: 0.75rem;
+
+  .subtitle {
     color: var(--text-secondary);
     margin-top: 0.5rem;
+    font-size: 1.125rem;
   }
-  
-  .error-message {
-    background-color: rgba(239, 68, 68, 0.1);
-    color: #ef4444;
-    padding: 0.75rem 1rem;
-    border-radius: 0.375rem;
-    font-size: 0.875rem;
-    margin-bottom: 1.5rem;
-    border-left: 3px solid #ef4444;
-  }
-  
-  .success-message {
-    background-color: rgba(16, 185, 129, 0.1);
-    color: #10b981;
-    padding: 0.75rem 1rem;
-    border-radius: 0.375rem;
-    font-size: 0.875rem;
-    margin-bottom: 1.5rem;
-    border-left: 3px solid #10b981;
-  }
-  
-  .profile-button {
-    width: 100%;
-    padding: 0.75rem 1.5rem;
-    font-size: 0.875rem;
-    font-weight: 500;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-  }
-  
-  .profile-info {
-    padding: 2rem;
-  }
-  
-  .info-item {
-    display: flex;
-    margin-bottom: 1rem;
-  }
-  
-  .info-label {
-    font-weight: 500;
-    width: 40%;
-    color: var(--text-secondary);
-  }
-  
-  .info-value {
-    width: 60%;
-  }
-  
-  .loading-container {
+
+  .profile-content {
     display: flex;
     flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 1rem;
+    gap: 3rem;
   }
-  
-  .loading-spinner {
-    width: 3rem;
-    height: 3rem;
-    border-radius: 9999px;
-    border: 3px solid rgba(139, 92, 246, 0.3);
-    border-top-color: var(--accent);
-    animation: spin 1s linear infinite;
-  }
-  
-  .spinner {
-    width: 1rem;
-    height: 1rem;
-    border-radius: 9999px;
-    border: 2px solid rgba(255, 255, 255, 0.3);
-    border-top-color: white;
-    animation: spin 1s linear infinite;
-  }
-  
-  @keyframes spin {
-    to {
-      transform: rotate(360deg);
-    }
-  }
-  
-  .not-logged-in {
-    text-align: center;
+
+  .profile-section {
     padding: 2rem;
-    background-color: var(--background-card);
-    border-radius: 0.5rem;
+    background: var(--background);
+    border-radius: 1rem;
     border: 1px solid var(--border);
   }
-  
-  .not-logged-in h2 {
-    margin-bottom: 1rem;
+
+  .main-info {
+    display: flex;
+    gap: 2.5rem;
+    align-items: center;
   }
-  
-  .not-logged-in p {
-    margin-bottom: 1.5rem;
+
+  .user-info {
+    flex: 1;
+  }
+
+  .name-display {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  h2 {
+    font-size: 1.875rem;
+    font-weight: 600;
+    margin: 0;
+    color: var(--text-primary);
+  }
+
+  .email {
     color: var(--text-secondary);
+    font-size: 1.125rem;
+    margin: 0.5rem 0 0 0;
   }
-  
-  @media (max-width: 640px) {
-    .profile-card {
-      box-shadow: none;
-      border: none;
-      background-color: transparent;
+
+  .btn-icon {
+    background: none;
+    border: none;
+    padding: 0.5rem;
+    cursor: pointer;
+    color: var(--text-secondary);
+    border-radius: 0.5rem;
+    transition: all 0.2s;
+  }
+
+  .btn-icon:hover {
+    color: var(--accent);
+    background: var(--background-hover);
+  }
+
+  .edit-name-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    margin-top: 0.5rem;
+  }
+
+  .name-input {
+    padding: 0.75rem 1rem;
+    border-radius: 0.5rem;
+    border: 1px solid var(--border);
+    background: var(--background);
+    color: var(--text-primary);
+    font-size: 1rem;
+    width: 100%;
+    max-width: 300px;
+  }
+
+  .button-group {
+    display: flex;
+    gap: 1rem;
+  }
+
+  .btn {
+    padding: 0.75rem 1.5rem;
+    border-radius: 0.5rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .primary {
+    background: var(--accent);
+    color: white;
+    border: none;
+  }
+
+  .primary:hover {
+    opacity: 0.9;
+  }
+
+  .secondary {
+    background: var(--background);
+    color: var(--text-primary);
+    border: 1px solid var(--border);
+  }
+
+  .secondary:hover {
+    background: var(--background-hover);
+  }
+
+  .account-details h3 {
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin: 0 0 1.5rem 0;
+    color: var(--text-primary);
+  }
+
+  .details-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1.5rem;
+  }
+
+  .detail-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .detail-label {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    font-weight: 500;
+  }
+
+  .detail-value {
+    font-size: 1rem;
+    color: var(--text-primary);
+  }
+
+  .status {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+  }
+
+  .status-dot.active {
+    background: #22c55e;
+  }
+
+  .status-dot.verified {
+    background: #22c55e;
+  }
+
+  .status-dot.unverified {
+    background: #f59e0b;
+  }
+
+  .error-message {
+    color: #ef4444;
+    font-size: 0.875rem;
+    margin: 0;
+  }
+
+  @media (max-width: 768px) {
+    .page-container {
+      padding: 1rem;
     }
-    
-    .profile-header,
-    .profile-form,
-    .profile-info {
-      padding: 1.5rem 1rem;
+
+    .profile-container {
+      padding: 1.5rem;
     }
-    
-    .profile-avatar {
-      width: 3rem;
-      height: 3rem;
-      font-size: 1.25rem;
-      margin-right: 1rem;
-    }
-    
-    .profile-title {
-      font-size: 1.25rem;
-    }
-    
-    .info-item {
+
+    .main-info {
       flex-direction: column;
+      text-align: center;
     }
-    
-    .info-label,
-    .info-value {
-      width: 100%;
+
+    .name-display {
+      justify-content: center;
     }
-    
-    .info-value {
-      margin-top: 0.25rem;
+
+    .details-grid {
+      grid-template-columns: 1fr;
     }
   }
 </style> 

@@ -1,4 +1,5 @@
 import { Client, Account, Databases, Storage, ID } from 'appwrite';
+import type { Models } from 'appwrite';
 import type { User } from './stores/userStore';
 import { updateUser } from './stores/userStore';
 import { sendVerificationEmail } from './emailService';
@@ -61,12 +62,26 @@ export const createUserAccount = async ({ email, password, name }: UserAccount) 
 
 export const signInAccount = async ({ email, password }: SignInCredentials) => {
     try {
-        // Use email and password directly without userId
+        // Create an email/password session using the correct method
         const session = await account.createEmailPasswordSession(email, password);
+        
+        // Add debug logging
+        console.log('Session created successfully:', {
+            sessionId: session.$id,
+            userId: session.userId,
+            provider: session.provider
+        });
+        
         window.location.href = '/';
         return session;
-    } catch (error) {
-        console.error("Error signing in:", error);
+    } catch (error: any) {
+        // Enhanced error logging
+        console.error("Error signing in:", {
+            message: error.message,
+            code: error.code,
+            type: error.type,
+            response: error.response
+        });
         throw error;
     }
 };
@@ -74,7 +89,14 @@ export const signInAccount = async ({ email, password }: SignInCredentials) => {
 export const getCurrentUser = async () => {
     try {
         const currentAccount = await account.get();
-        return currentAccount;
+        // Get user preferences which include the profile picture
+        const prefs = await account.getPrefs();
+        
+        // Merge the account data with preferences
+        return {
+            ...currentAccount,
+            profilePicture: prefs.profilePicture || null
+        };
     } catch (error) {
         console.error("Error getting current user:", error);
         return null;
@@ -159,6 +181,13 @@ export const sendVerificationCode = async (email: string): Promise<boolean> => {
     }
 };
 
+// Helper function to generate valid Appwrite user IDs
+function generateValidUserId(): string {
+    const timestamp = Date.now().toString(36);
+    const random = Math.random().toString(36).substring(2, 7);
+    return `usr${timestamp}${random}`.substring(0, 36);
+}
+
 export const verifyCode = async (email: string, code: string): Promise<boolean> => {
     try {
         // Check if we're in a browser environment
@@ -181,23 +210,42 @@ export const verifyCode = async (email: string, code: string): Promise<boolean> 
             return false;
         }
         
+        const userId = generateValidUserId();
+        console.log('Attempting to create account with userId:', userId);
+        
         try {
-            // Change 'unique()' string to ID.unique()
-            const userId = ID.unique(); // Generate proper userId using Appwrite's ID utility
             const response = await account.create(
-                userId,  // Use the generated userId instead of 'unique()'
+                userId,
                 pendingUser.email,
                 pendingUser.password,
                 pendingUser.name
             );
             
             if (response) {
+                // Clean up localStorage
                 localStorage.removeItem(PENDING_USER_KEY);
                 localStorage.removeItem(VERIFICATION_CODE_KEY);
+                
+                // Try to sign in automatically after account creation
+                try {
+                    await signInAccount({
+                        email: pendingUser.email,
+                        password: pendingUser.password
+                    });
+                } catch (signInError) {
+                    console.error('Auto sign-in failed:', signInError);
+                    // Continue even if auto sign-in fails
+                }
+                
                 return true;
             }
         } catch (appwriteError: any) {
-            console.error('Appwrite error during account creation:', appwriteError);
+            console.error('Appwrite error during account creation:', {
+                message: appwriteError.message,
+                code: appwriteError.code,
+                type: appwriteError.type,
+                userId: userId
+            });
             throw appwriteError;
         }
         
@@ -206,4 +254,14 @@ export const verifyCode = async (email: string, code: string): Promise<boolean> 
         console.error('Error verifying code:', error);
         throw error;
     }
-}; 
+};
+
+export async function updateUserProfile(userId: string, updates: { prefs: Record<string, any> }) {
+  try {
+    const updatedUser = await account.updatePrefs(updates.prefs);
+    return updatedUser;
+  } catch (error) {
+    console.error('Error updating user profile:', error);
+    throw error;
+  }
+} 

@@ -1,4 +1,5 @@
 <script>
+  import FloatingCube from '$lib/components/FloatingCube.svelte';
   // Company name
   let companyName = "EonfluxTech";
 </script>
@@ -126,7 +127,7 @@
         </div>
       </div>
       <div class="about-image-container">
-        <img src="/illustartion.png" alt="Team working together" class="about-image" />
+        <FloatingCube />
       </div>
     </div>
   </div>
@@ -173,10 +174,14 @@
   }
 
   .section-title {
-    font-size: 2rem;
-    font-weight: 700;
-    margin-bottom: 2.5rem;
-    text-align: center;
+    font-size: 2.5rem;
+    font-weight: 800;
+    margin-bottom: 2rem;
+    text-align: left;
+    background: linear-gradient(135deg, var(--accent) 0%, #8b5cf6 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
   }
 
   .bg-alt {
@@ -198,14 +203,35 @@
   }
 
   .hero-title {
-    font-size: 3rem;
-    font-weight: 800;
-    line-height: 1.2;
+    font-size: 4.5rem;
+    font-weight: 900;
+    line-height: 1.1;
     margin-bottom: 1.5rem;
-    background: linear-gradient(to right, var(--accent), #8b5cf6);
+    background: linear-gradient(
+        135deg,
+        var(--accent) 0%,
+        #8b5cf6 35%,
+        #3b82f6 65%,
+        var(--accent) 100%
+    );
+    background-size: 150% auto;
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
+    animation: shine 12s ease infinite;
+    letter-spacing: -0.02em;
+  }
+
+  @keyframes shine {
+    0% {
+        background-position: 0% 50%;
+    }
+    50% {
+        background-position: 100% 50%;
+    }
+    100% {
+        background-position: 0% 50%;
+    }
   }
 
   .hero-description {
@@ -325,59 +351,89 @@
   .about-grid {
     display: grid;
     grid-template-columns: 3fr 2fr;
-    gap: 3rem;
+    gap: 4rem;
     align-items: center;
+    position: relative;
+  }
+
+  .about-content {
+    position: relative;
+    z-index: 1;
   }
 
   .about-description {
     color: var(--text-secondary);
-    font-size: 1rem;
-    line-height: 1.6;
-    margin-bottom: 2.5rem;
+    font-size: 1.125rem;
+    line-height: 1.7;
+    margin-bottom: 3rem;
+    max-width: 90%;
   }
 
   .values-grid {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
-    gap: 1.5rem;
+    gap: 2rem;
   }
 
   .value-item {
     display: flex;
     flex-direction: column;
     align-items: flex-start;
+    padding: 1.5rem;
+    background: var(--background-card);
+    border-radius: 1rem;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+  }
+
+  .value-item:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
   }
 
   .value-icon {
-    width: 2rem;
-    height: 2rem;
+    width: 2.5rem;
+    height: 2.5rem;
     color: var(--accent);
-    margin-bottom: 0.75rem;
+    margin-bottom: 1rem;
+    padding: 0.5rem;
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(139, 92, 246, 0.1) 100%);
+    border-radius: 0.75rem;
   }
 
   .value-title {
-    font-size: 1rem;
-    font-weight: 600;
-    margin-bottom: 0.5rem;
+    font-size: 1.25rem;
+    font-weight: 700;
+    margin-bottom: 0.75rem;
+    color: var(--text-primary);
   }
 
   .value-description {
     color: var(--text-secondary);
-    font-size: 0.875rem;
-    line-height: 1.5;
+    font-size: 1rem;
+    line-height: 1.6;
   }
 
   .about-image-container {
     position: relative;
-    border-radius: 0.5rem;
-    overflow: hidden;
-    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    border-radius: 1rem;
+    overflow: visible;
+    height: 400px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+  }
+
+  .about-image-container:hover {
+    transform: none;
   }
 
   .about-image {
-    width: 100%;
-    height: auto;
-    display: block;
+    display: none;
+  }
+
+  .about-image-container:hover .about-image {
+    transform: none;
   }
 
   /* Featured Section */
@@ -431,7 +487,7 @@
   /* Responsive Styles */
   @media (max-width: 1024px) {
     .hero-title {
-      font-size: 2.5rem;
+        font-size: 3.5rem;
     }
     
     .section {
@@ -449,7 +505,7 @@
     }
     
     .hero-title {
-      font-size: 2rem;
+      font-size: 3rem;
     }
     
     .hero-description {
@@ -457,17 +513,27 @@
     }
     
     .section-title {
-      font-size: 1.75rem;
-      margin-bottom: 2rem;
+      text-align: center;
+      font-size: 2rem;
     }
     
     .about-grid {
       grid-template-columns: 1fr;
-      gap: 2.5rem;
+      gap: 3rem;
     }
     
     .about-image-container {
+      transform: none;
       order: -1;
+    }
+    
+    .about-image-container:hover {
+      transform: none;
+    }
+    
+    .about-description {
+      max-width: 100%;
+      text-align: center;
     }
     
     .featured-grid {
@@ -482,7 +548,7 @@
     }
     
     .hero-title {
-      font-size: 1.75rem;
+      font-size: 2.5rem;
     }
     
     .hero-description {
@@ -502,18 +568,26 @@
     }
     
     .section-title {
-      font-size: 1.5rem;
+      font-size: 1.75rem;
     }
     
     .values-grid {
       grid-template-columns: 1fr;
       gap: 1.5rem;
     }
+    
+    .value-item {
+      padding: 1.25rem;
+    }
+    
+    .about-description {
+      font-size: 1rem;
+    }
   }
 
   @media (max-width: 480px) {
     .hero-title {
-      font-size: 1.5rem;
+      font-size: 2rem;
     }
     
     .product-card {

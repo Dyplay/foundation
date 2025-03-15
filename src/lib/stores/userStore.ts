@@ -1,14 +1,15 @@
 import { writable, type Writable, get } from 'svelte/store';
 import { getCurrentUser } from '../appwrite';
 
-export interface User {
+export type User = {
     $id: string;
     name: string;
     email: string;
     emailVerification: boolean;
     status: boolean;
     prefs: Record<string, any>;
-}
+    profilePicture?: string;
+};
 
 export const user: Writable<User | null> = writable(null);
 export const isLoading: Writable<boolean> = writable(true);

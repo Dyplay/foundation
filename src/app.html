@@ -1,9 +1,44 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 	<head>
 		<meta charset="utf-8" />
 		<link rel="icon" href="%sveltekit.assets%/favicon.png" />
-		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<meta name="viewport" content="width=device-width" />
+		<!-- Prevent flash of wrong theme and logo -->
+		<script>
+			(function() {
+				try {
+					const savedSettings = localStorage.getItem('user_settings');
+					let isDarkMode = true; // Default to dark mode
+					
+					if (savedSettings) {
+						const settings = JSON.parse(savedSettings);
+						isDarkMode = settings.darkMode ?? true;
+					}
+
+					// Set theme class and data attribute
+					document.documentElement.classList.toggle('dark-mode', isDarkMode);
+					document.documentElement.setAttribute('data-theme', isDarkMode ? 'dark' : 'light');
+					
+					// Set logo source globally
+					window.__THEME_LOGO__ = isDarkMode ? '/logo.png' : '/logo_whitemode.png';
+					
+					// Create a style element to handle logo flash
+					const style = document.createElement('style');
+					style.textContent = `
+						.logo-image {
+							content: url("${window.__THEME_LOGO__}") !important;
+						}
+					`;
+					document.head.appendChild(style);
+				} catch (e) {
+					console.error('Error setting theme:', e);
+					// Fallback to dark mode
+					document.documentElement.classList.add('dark-mode');
+					document.documentElement.setAttribute('data-theme', 'dark');
+				}
+			})();
+		</script>
 		%sveltekit.head%
 	</head>
 	<body data-sveltekit-preload-data="hover">

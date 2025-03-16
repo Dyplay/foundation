@@ -1,147 +1,76 @@
 <script lang="ts">
-  import { user } from '$lib/stores/authStore';
-  import type { SellAppProduct } from '$lib/sellapp';
-  import { getProductImageUrl, getProductPrice, getProductStock, getProductUrl } from '$lib/sellapp';
-  import { fade, slide } from 'svelte/transition';
-  import { onMount } from 'svelte';
+  import type { GumroadProduct } from '$lib/server/gumroad.server';
+  import { fade } from 'svelte/transition';
+  import { goto } from '$app/navigation';
 
-  export let data: { products: SellAppProduct[], error: string | null };
+  export let data: { products: GumroadProduct[], error: string | null };
 
-  let loading = true;
-  let error = data?.error || null;
-  let products: SellAppProduct[] = [];
+  let sortOption = 'name';
+  let products = data.products.filter(product => !product.name.toLowerCase().includes('membership'));
 
-  // Debug logging
-  console.log('[Client] Raw data received:', data);
-  console.log('[Client] Data structure:', {
-    hasData: !!data,
-    hasProducts: !!data?.products,
-    productsLength: data?.products?.length,
-    error: data?.error
-  });
-
-  // Initialize products from data
-  products = data?.products || [];
-  console.log('[Client] Initial products:', products);
-
-  // Reactive statements
-  $: if (data) {
-    console.log('[Client] Data changed:', data);
-    products = data.products || [];
-    error = data.error || null;
-    console.log('[Client] Products updated:', products);
-    console.log('[Client] Error state:', error);
-  }
-  $: loading = false;
-
-  function handlePurchase(product: SellAppProduct) {
-    if ($user) {
-      const purchaseUrl = getProductUrl(product);
-      window.open(purchaseUrl, '_blank');
-    }
+  function getProductImage(product: GumroadProduct): string {
+    return product.preview_url || '/images/placeholder.png';
   }
 
-  onMount(() => {
-    console.log('Component mounted');
-    console.log('Current products:', products);
-    console.log('Loading state:', loading);
-    console.log('Error state:', error);
-    loading = false;
-  });
+  function goToProduct(product: GumroadProduct) {
+    goto(`/shop/${product.id}`);
+  }
 
-  let sortOption = 'default';
-
-  // Sorting options
-  const sortProducts = (option: string) => {
+  function sortProducts(option: string) {
     sortOption = option;
-    const sortedProducts = [...products];
-    switch (option) {
-      case 'price-low':
-        sortedProducts.sort((a, b) => getProductPrice(a) - getProductPrice(b));
-        break;
-      case 'price-high':
-        sortedProducts.sort((a, b) => getProductPrice(b) - getProductPrice(a));
-        break;
-      case 'stock-low':
-        sortedProducts.sort((a, b) => getProductStock(a) - getProductStock(b));
-        break;
-      case 'stock-high':
-        sortedProducts.sort((a, b) => getProductStock(b) - getProductStock(a));
-        break;
-      default:
-        // Default sorting (by id or original order)
-        sortedProducts.sort((a, b) => a.id.toString().localeCompare(b.id.toString()));
-    }
-    products = sortedProducts;
-  };
+    products = [...data.products]
+      .filter(product => !product.name.toLowerCase().includes('membership'))
+      .sort((a, b) => {
+        switch (option) {
+          case 'price-low':
+            return a.price - b.price;
+          case 'price-high':
+            return b.price - a.price;
+          case 'sales':
+            return b.sales_count - a.sales_count;
+          default:
+            return a.name.localeCompare(b.name);
+        }
+      });
+  }
 </script>
 
-<div class="shop-container">
-  <div class="shop-header" in:fade>
-    <h1>Shop</h1>
-    <p class="subtitle">Browse our digital products</p>
-  </div>
+<div class="container">
+  <h1 class="">Shop</h1>
 
-  {#if loading}
-    <div class="loading-state" in:fade>
-      <div class="loading-spinner" />
-      <p>Loading products...</p>
-    </div>
-  {:else if error}
-    <div class="error-state" in:slide>
-      <div class="error-icon">
-        <svg xmlns="http://www.w3.org/2000/svg" class="icon" viewBox="0 0 20 20" fill="currentColor">
-          <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
-        </svg>
-      </div>
-      <h2 class="error-title">Error Loading Products</h2>
-      <p class="error-description">{error}</p>
-      <button class="retry-button" on:click={() => window.location.reload()}>
-        Retry
-      </button>
+  {#if data.error}
+    <div class="error" transition:fade>
+      <p>{data.error}</p>
     </div>
   {:else}
-    <div class="shop-controls" in:fade>
-      <div class="sort-container">
-        <label for="sort">Sort by:</label>
-        <select id="sort" bind:value={sortOption} on:change={() => sortProducts(sortOption)}>
-          <option value="default">Default</option>
-          <option value="price-low">Price: Low to High</option>
-          <option value="price-high">Price: High to Low</option>
-          <option value="stock-low">Stock: Low to High</option>
-          <option value="stock-high">Stock: High to Low</option>
-        </select>
-      </div>
+    <div class="sort-container">
+      <select bind:value={sortOption} on:change={() => sortProducts(sortOption)}>
+        <option value="name">Sort by Name</option>
+        <option value="price-low">Price: Low to High</option>
+        <option value="price-high">Price: High to Low</option>
+        <option value="sales">Most Popular</option>
+      </select>
     </div>
 
-    <div class="shop-grid" in:fade>
+    <div class="products-grid">
       {#each products as product (product.id)}
-        <div class="product-card">
-          <img 
-            src={getProductImageUrl(product)} 
-            alt={product.title}
-            class="product-image"
-          />
-          <div class="product-info">
-            <h3>{product.title}</h3>
-            <p class="description">{product.description}</p>
-            <div class="price-stock">
-              <span class="price">${getProductPrice(product)}</span>
-              <span class="stock">Stock: {getProductStock(product)}</span>
+        <div class="product-card" transition:fade>
+          <div class="product-content" on:click={() => goToProduct(product)} on:keydown={(e) => e.key === 'Enter' && goToProduct(product)} role="button" tabindex="0">
+            <div class="product-image">
+              <img src={getProductImage(product)} alt={product.name} />
             </div>
-            <button 
-              class="buy-button" 
-              class:disabled={!$user || getProductStock(product) === 0}
-              on:click={() => handlePurchase(product)}
-              disabled={!$user || getProductStock(product) === 0}
-            >
-              {#if !$user}
-                Sign in to Purchase
-              {:else if getProductStock(product) === 0}
-                Out of Stock
-              {:else}
-                Buy Now
-              {/if}
+            <div class="product-info">
+              <h2>{product.name}</h2>
+              <p class="product-summary">{product.custom_summary || product.description}</p>
+              <div class="product-meta">
+                <span class="price">{product.formatted_price}</span>
+                <span class="sales">{product.sales_count} sold</span>
+              </div>
+            </div>
+          </div>
+          <div class="product-actions">
+            <button class="btn btn-primary" on:click={() => goToProduct(product)}>
+              View Details
             </button>
           </div>
         </div>
@@ -151,80 +80,71 @@
 </div>
 
 <style>
-  .shop-container {
+  .container {
     max-width: 1200px;
     margin: 0 auto;
-    padding: 2rem;
-  }
-
-  .shop-header {
-    text-align: center;
-    margin-bottom: 3rem;
+    padding: 2rem 1rem;
   }
 
   h1 {
-    font-size: 2.5rem;
-    font-weight: 700;
-    margin: 0;
-    background: linear-gradient(135deg, var(--accent) 0%, #8b5cf6 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-  }
-
-  .subtitle {
-    color: var(--text-secondary);
-    margin-top: 0.5rem;
-    font-size: 1.125rem;
-  }
-
-  .shop-controls {
     margin-bottom: 2rem;
+    text-align: center;
   }
 
   .sort-container {
+    margin-bottom: 2rem;
     display: flex;
-    align-items: center;
-    gap: 1rem;
+    justify-content: flex-end;
   }
 
-  .sort-container label {
-    color: var(--text-secondary);
-    font-size: 0.875rem;
-  }
-
-  .sort-container select {
+  select {
     padding: 0.5rem;
     border-radius: 0.375rem;
     border: 1px solid var(--border);
-    background: var(--background-card);
-    color: var(--text-primary);
+    background-color: var(--background-card);
+    color: var(--text);
     font-size: 0.875rem;
-    cursor: pointer;
   }
 
-  .shop-grid {
+  .products-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
     gap: 2rem;
-    padding: 2rem;
   }
 
   .product-card {
-    background: var(--surface-2);
-    border-radius: 1rem;
+    background: var(--background-card);
+    border: 1px solid var(--border);
+    border-radius: 0.5rem;
     overflow: hidden;
-    transition: transform 0.2s ease;
-    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    display: flex;
+    flex-direction: column;
   }
 
   .product-card:hover {
     transform: translateY(-4px);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  }
+
+  .product-content {
+    flex: 1;
+    cursor: pointer;
+  }
+
+  .product-content:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px var(--accent);
   }
 
   .product-image {
+    aspect-ratio: 16/9;
+    overflow: hidden;
+  }
+
+  .product-image img {
     width: 100%;
-    height: 200px;
+    height: 100%;
     object-fit: cover;
   }
 
@@ -232,13 +152,14 @@
     padding: 1.5rem;
   }
 
-  .product-info h3 {
+  .product-info h2 {
     margin: 0 0 0.5rem 0;
     font-size: 1.25rem;
   }
 
-  .description {
-    color: var(--text-2);
+  .product-summary {
+    color: var(--text-secondary);
+    font-size: 0.875rem;
     margin-bottom: 1rem;
     display: -webkit-box;
     -webkit-line-clamp: 3;
@@ -246,7 +167,7 @@
     overflow: hidden;
   }
 
-  .price-stock {
+  .product-meta {
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -255,105 +176,48 @@
 
   .price {
     font-size: 1.25rem;
-    font-weight: bold;
-    color: var(--brand);
-  }
-
-  .stock {
-    color: var(--text-2);
-  }
-
-  .buy-button {
-    width: 100%;
-    padding: 0.75rem;
-    border-radius: 0.5rem;
-    background: var(--brand);
-    color: white;
-    border: none;
-    cursor: pointer;
-    transition: opacity 0.2s ease;
-  }
-
-  .buy-button:hover:not(.disabled) {
-    opacity: 0.9;
-  }
-
-  .buy-button.disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-
-  .loading-state, .error-state {
-    text-align: center;
-    padding: 4rem 2rem;
-    max-width: 400px;
-    margin: 0 auto;
-  }
-
-  .loading-spinner {
-    width: 40px;
-    height: 40px;
-    margin: 0 auto 1rem;
-    border: 3px solid var(--border);
-    border-top-color: var(--accent);
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-  }
-
-  @keyframes spin {
-    to { transform: rotate(360deg); }
-  }
-
-  .error-icon {
-    width: 48px;
-    height: 48px;
-    margin: 0 auto 1rem;
-    color: var(--text-secondary);
-  }
-
-  .error-title {
-    font-size: 1.5rem;
     font-weight: 600;
-    margin-bottom: 0.5rem;
-    color: var(--text-primary);
+    color: var(--accent);
   }
 
-  .error-description {
+  .sales {
+    font-size: 0.875rem;
     color: var(--text-secondary);
-    margin-bottom: 1.5rem;
   }
 
-  .retry-button {
-    background: var(--accent);
-    color: white;
-    border: none;
-    padding: 0.75rem 1.5rem;
-    border-radius: 0.5rem;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.3s ease;
+  .product-actions {
+    padding: 0 1.5rem 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
   }
 
-  .retry-button:hover {
-    background: #7c3aed;
+  .btn {
+    width: 100%;
   }
 
-  @media (max-width: 768px) {
-    .shop-container {
-      padding: 1rem;
-    }
+  .btn-secondary {
+    background-color: var(--background);
+    border: 1px solid var(--border);
+    color: var(--text);
+  }
 
-    .shop-grid {
-      grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-      gap: 1rem;
-    }
+  .btn-secondary:hover {
+    background-color: var(--background-hover);
+  }
 
-    h1 {
-      font-size: 2rem;
-    }
+  .error {
+    background-color: rgb(254, 226, 226);
+    border: 1px solid rgb(248, 113, 113);
+    color: rgb(185, 28, 28);
+    padding: 1rem;
+    border-radius: 0.375rem;
+    margin-bottom: 2rem;
+  }
 
-    .subtitle {
-      font-size: 1rem;
+  @media (max-width: 640px) {
+    .products-grid {
+      grid-template-columns: 1fr;
     }
   }
 </style> 

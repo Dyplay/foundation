@@ -1,22 +1,9 @@
 import type { PageLoad } from './$types';
+import type { GumroadProduct } from '$lib/server/gumroad.server';
 
-interface ShopItem {
-  title: string;
-  description: string;
-  link: string;
-  image: string;
-  price: string;
-}
-
-export const load: PageLoad = async ({ fetch }) => {
-  try {
-    const response = await fetch('/api/kofi-shop');
-    const data = await response.json();
-    return data;
-  } catch (error) {
-    console.error('Error fetching Ko-fi shop items:', error);
-    return {
-      items: []
-    };
-  }
+export const load: PageLoad = async ({ data }) => {
+  return {
+    products: data.products as GumroadProduct[],
+    error: data.error as string | null
+  };
 }; 
